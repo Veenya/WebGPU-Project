@@ -262,39 +262,28 @@ const displace = `
 `;*/
 export function initShaders() {
 	setGPUVertexShader(`
-		struct VertexInput {
-		@location(0) position: vec2<f32>,
-		@location(1) texCoord: vec2<f32>,
-		};
-	struct VertexOutput {
-		@builtin(position) position: vec4<f32>,
-		@location(0) texCoord: vec2<f32>,
-		@location(1) color: vec2<f32>,
-		@location(2) t: f32,            // <<< passiamo il tempo al fragment
-		};
-	struct VertexUniforms {
-		randomVec2: vec2<f32>,
-		time: f32,
-		};
-	@group(0) @binding(0) var<uniform> vertexUniforms: VertexUniforms;
-	@vertex
+		struct VSOut { @builtin(position) pos: vec4<f32>, @location(0) uv: vec2<f32>, @location(1) t: f32 };
+struct VertexUniforms { randomVec2: vec2<f32>, time: f32 };
+@group(0) @binding(0) var<uniform> U: VertexUniforms;
 
-	fn main(input: VertexInput) -> VertexOutput {
-		var out: VertexOutput;
-		out.texCoord = input.texCoord;
-		out.color = vec2<f32>(0.0);     // non usata nel nuovo fragment
-		out.t = vertexUniforms.time;    // <<< manda il tempo al fragment
-		out.position = vec4<f32>(input.position, 0.0, 1.0); // pass-through
-		return out;
-		}
+@vertex
+fn main(@builtin(vertex_index) vi: u32) -> VSOut {
+  var p = array<vec2<f32>, 3>(
+    vec2<f32>(-1.0, -1.0),
+    vec2<f32>( 3.0, -1.0),
+    vec2<f32>(-1.0,  3.0)
+  );
+  var o: VSOut;
+  o.pos = vec4<f32>(p[vi], 0.0, 1.0);
+  // map NDC to uv in [0,1]
+  o.uv = p[vi] * 0.5 + vec2<f32>(0.5, 0.5);
+  o.t = U.time;
+  return o;
+}
 	`);
 
 	setGPUFragmentShader(`
-		struct FragmentInput {
-			@location(0) texCoord: vec2<f32>,
-			@location(1) color: vec2<f32>, // non usata
-			@location(2) t: f32,           // tempo dal vertex
-			};
+		struct FSIn { @location(0) uv: vec2<f32>, @location(1) t: f32 };
 		
 		// se la tua app si aspetta comunque @group(1) @binding(0) puoi lasciare questa struct,
 		// ma NON la usiamo. In alternativa, puoi rimuoverla se la pipeline non la richiede.
@@ -365,17 +354,11 @@ export function initShaders() {
 		}
 
 		@fragment
-		fn main(input: FragmentInput) -> @location(0) vec4<f32> {
-		// Shadertoy-like: usa uv in [0,1]
-		let uv = input.texCoord;
-
-		let shade = pattern(uv, input.t);
+		fn main(i: FSIn) -> @location(0) vec4<f32> {
+		let shade = pattern(i.uv, i.t);
 		let cm = colormap(shade);
-
-		// Se vuoi mantenere il blend con i colori dell'app, sostituisci la riga sotto
-		// con un mix su fragmentUniforms.color/precColor.
-		return vec4<f32>(cm.xyz, shade);
-		}		
+		return vec4<f32>(cm.xyz, 1.0); // opaque
+		}	
 
 		`);
 

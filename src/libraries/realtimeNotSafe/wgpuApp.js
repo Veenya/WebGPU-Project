@@ -64,7 +64,11 @@ export class WebGPUApp {
             this.context = this.canvas.getContext("webgpu");
 
             const format = navigator.gpu.getPreferredCanvasFormat();
-            this.context.configure({ device: this.device, format: format });
+           this.context.configure({
+                device: this.device,
+                format: navigator.gpu.getPreferredCanvasFormat(),
+                alphaMode: 'opaque'
+                });
 
             this.createPipeline();
             this.createBuffer();
@@ -136,7 +140,7 @@ export class WebGPUApp {
                 targets: [{ format: "bgra8unorm" }],
             },
             primitive: {
-                topology: "point-list",
+                topology: "triangle-list",
             },
         });
     }
