@@ -263,220 +263,121 @@ const displace = `
 export function initShaders() {
 	setGPUVertexShader(`
 		struct VertexInput {
-			@location(0) position: vec2<f32>,
-			@location(1) texCoord: vec2<f32>,
+		@location(0) position: vec2<f32>,
+		@location(1) texCoord: vec2<f32>,
 		};
-		struct VertexOutput {
-			@builtin(position) position: vec4<f32>,
-			@location(0) texCoord: vec2<f32>,
-			@location(1) color: vec2<f32>,
+	struct VertexOutput {
+		@builtin(position) position: vec4<f32>,
+		@location(0) texCoord: vec2<f32>,
+		@location(1) color: vec2<f32>,
+		@location(2) t: f32,            // <<< passiamo il tempo al fragment
 		};
-		struct VertexUniforms {
-			randomVec2: vec2<f32>,
-			time: f32,
+	struct VertexUniforms {
+		randomVec2: vec2<f32>,
+		time: f32,
 		};
-		fn mod289(x: vec4<f32>) -> vec4<f32> {
-			return x - floor(x * (1.0 / 289.0)) * 289.0;
-		}
-		fn mod289_f(x: f32) -> f32 {
-			return x - floor(x * (1.0 / 289.0)) * 289.0;
-		}
-		fn permute(x: vec4<f32>) -> vec4<f32> {
-			return mod289(((x * 34.0) + 10.0) * x);
-		}
-		fn permute_f(x: f32) -> f32 {
-			return mod289_f(((x * 34.0) + 10.0) * x);
-		}
-		fn taylorInvSqrt(r: vec4<f32>) -> vec4<f32> {
-			return 1.79284291400159 - 0.85373472095314 * r;
-		}
-		fn taylorInvSqrt_f(r: f32) -> f32 {
-			return 1.79284291400159 - 0.85373472095314 * r;
-		}
-		fn grad4(j: f32, ip: vec4<f32>) -> vec4<f32> {
-			let ones: vec4<f32> = vec4<f32>(1.0, 1.0, 1.0, -1.0);
-			var p: vec4<f32> = vec4<f32>(0.0);
-			var s: vec4<f32>;
+	@group(0) @binding(0) var<uniform> vertexUniforms: VertexUniforms;
+	@vertex
 
-			var p_xyz: vec3<f32> = floor(fract(vec3<f32>(j) * ip.xyz) * 7.0) * ip.z - 1.0;
-			p.w = 1.5 - dot(abs(p_xyz), ones.xyz);
-			s = vec4<f32>(select(vec3<f32>(0.0), vec3<f32>(1.0), p_xyz < vec3<f32>(0.0)), 0.0);
-			
-			p_xyz = p_xyz + (s.xyz * 2.0 - 1.0) * s.www;
-			p = vec4<f32>(p_xyz, p.w); // Assegna di nuovo a p
-
-			return p;
+	fn main(input: VertexInput) -> VertexOutput {
+		var out: VertexOutput;
+		out.texCoord = input.texCoord;
+		out.color = vec2<f32>(0.0);     // non usata nel nuovo fragment
+		out.t = vertexUniforms.time;    // <<< manda il tempo al fragment
+		out.position = vec4<f32>(input.position, 0.0, 1.0); // pass-through
+		return out;
 		}
-		const F4: f32 = 0.309016994374947451;
-		fn snoise(v: vec4<f32>) -> f32 {
-			let C: vec4<f32> = vec4<f32>(
-				0.138196601125011,  // (5 - sqrt(5)) / 20
-				0.276393202250021,  // 2 * G4
-				0.414589803375032,  // 3 * G4
-				-0.447213595499958  // -1 + 4 * G4
-			);
-	
-			var i: vec4<f32> = floor(v + dot(v, vec4<f32>(F4)));
-			var x0: vec4<f32> = v - i + dot(i, C.xxxx);
-	
-			var i0: vec4<f32>;
-			let isX: vec3<f32> = step(x0.yzw, x0.xxx);
-			let isYZ: vec3<f32> = step(x0.zww, x0.yyz);
-	
-			i0.x = isX.x + isX.y + isX.z;
-			var temp_yzw: vec3<f32> = vec3<f32>(1.0) - isX;
-			i0.y = temp_yzw.x;
-			i0.z = temp_yzw.y;
-			i0.w = temp_yzw.z;
-			i0.y += isYZ.x + isYZ.y;
-			var temp_zw: vec2<f32> = vec2<f32>(1.0) - isYZ.xy;
-			i0.z += temp_zw.x;
-			i0.w += temp_zw.y;
-			i0.z += isYZ.z;
-			i0.w += 1.0 - isYZ.z;
-	
-			let i3: vec4<f32> = clamp(i0, vec4<f32>(0.0), vec4<f32>(1.0));
-			let i2: vec4<f32> = clamp(i0 - vec4<f32>(1.0), vec4<f32>(0.0), vec4<f32>(1.0));
-			let i1: vec4<f32> = clamp(i0 - vec4<f32>(2.0), vec4<f32>(0.0), vec4<f32>(1.0));
-	
-			let x1: vec4<f32> = x0 - i1 + C.xxxx;
-			let x2: vec4<f32> = x0 - i2 + C.yyyy;
-			let x3: vec4<f32> = x0 - i3 + C.zzzz;
-			let x4: vec4<f32> = x0 + C.wwww;
-	
-			i = mod289(i);
-			let j0: f32 = permute_f(permute_f(permute_f(permute_f(i.w) + i.z) + i.y) + i.x);
-			let j1: vec4<f32> = permute(
-				permute(
-					permute(
-						permute(
-							i.w + vec4<f32>(i1.w, i2.w, i3.w, 1.0)
-						) + i.z + vec4<f32>(i1.z, i2.z, i3.z, 1.0)
-					) + i.y + vec4<f32>(i1.y, i2.y, i3.y, 1.0)
-				) + i.x + vec4<f32>(i1.x, i2.x, i3.x, 1.0)
-			);
-	
-			let ip: vec4<f32> = vec4<f32>(1.0 / 294.0, 1.0 / 49.0, 1.0 / 7.0, 0.0);
-	
-			var p0: vec4<f32> = grad4(j0, ip);
-			var p1: vec4<f32> = grad4(j1.x, ip);
-			var p2: vec4<f32> = grad4(j1.y, ip);
-			var p3: vec4<f32> = grad4(j1.z, ip);
-			var p4: vec4<f32> = grad4(j1.w, ip);
-	
-			let norm: vec4<f32> = taylorInvSqrt(vec4<f32>(
-				dot(p0, p0),
-				dot(p1, p1),
-				dot(p2, p2),
-				dot(p3, p3)
-			));
-			
-			p0 *= norm.x;
-			p1 *= norm.y;
-			p2 *= norm.z;
-			p3 *= norm.w;
-			p4 *= taylorInvSqrt_f(dot(p4, p4));
-	
-			let m0: vec3<f32> = max(vec3<f32>(0.6) - vec3<f32>(dot(x0, x0), dot(x1, x1), dot(x2, x2)), vec3<f32>(0.0));
-			let m1: vec2<f32> = max(vec2<f32>(0.6) - vec2<f32>(dot(x3, x3), dot(x4, x4)), vec2<f32>(0.0));
-			
-			let m0_2: vec3<f32> = m0 * m0;
-			let m1_2: vec2<f32> = m1 * m1;
-			
-			return 49.0 * (
-				dot(m0_2 * m0_2, vec3<f32>(dot(p0, x0), dot(p1, x1), dot(p2, x2))) +
-				dot(m1_2 * m1_2, vec2<f32>(dot(p3, x3), dot(p4, x4)))
-			);
-		}
-		fn snoise4DImage(uv: vec2<f32>, scal: f32, gain: f32, ofst: f32, moveSnoise: vec4<f32>) -> vec4<f32> {
-			let uv_scaled = uv * scal;
-			
-			let R: f32 = snoise(vec4<f32>(uv_scaled, 100.0, 200.0) + moveSnoise);
-			let G: f32 = snoise(vec4<f32>(uv_scaled, 300.0, 400.0) + moveSnoise);
-			let B: f32 = snoise(vec4<f32>(uv_scaled, 500.0, 600.0) + moveSnoise);
-			
-			let color: vec3<f32> = ofst + gain * vec3<f32>(R, G, B);
-			return vec4<f32>(color, 1.0);
-		}
-		fn snoise4DImageExpo(uv: vec2<f32>, scal: f32, gain: f32, ofst: f32, expo: f32, moveSnoise: vec4<f32>) -> vec4<f32> {
-			let uv_scaled = uv * scal;
-			
-			let R: f32 = snoise(vec4<f32>(uv_scaled, 100.0, 200.0) + moveSnoise);
-			let G: f32 = snoise(vec4<f32>(uv_scaled, 300.0, 400.0) + moveSnoise);
-			let B: f32 = snoise(vec4<f32>(uv_scaled, 500.0, 600.0) + moveSnoise);
-			
-			var col: vec3<f32>;
-			col.r = pow(abs(R), expo) * (select(-1.0, 1.0, R > 0.0));
-			col.g = pow(abs(G), expo) * (select(-1.0, 1.0, G > 0.0));
-			col.b = pow(abs(B), expo) * (select(-1.0, 1.0, B > 0.0));
-			
-			return vec4<f32>(ofst + gain * col, 1.0);
-		}
-		fn displace(uv: vec2<f32>, duv: vec2<f32>, off: f32, wei: f32) -> vec2<f32> {
-			let displaced_duv = duv - off;
-			return uv - displaced_duv * wei;
-		}
-		@group(0) @binding(1) var img: texture_2d<f32>;
-		@group(0) @binding(2) var imgSampler: sampler;
-		fn displaceTexture(uv: vec2<f32>, duv: vec2<f32>, off: f32, wei: f32) -> vec4<f32> {
-			let displaced_duv = duv - off;
-			return textureSample(img, imgSampler, uv - displaced_duv * wei);
-		}
-		fn noise(uv: vec2<f32>, scal: f32, gain: f32, ofst: f32, expo: f32, moveSnoise: vec4<f32>) -> vec4<f32> {
-			var noise: vec4<f32>;
-	
-			noise  =     1.0 * snoise4DImage((uv - vec2<f32>(421.0, 132.0)) * 1.0, scal, gain, ofst, moveSnoise);
-			noise +=     0.5 * snoise4DImage((uv - vec2<f32>(913.0, 687.0)) * 2.0, scal, gain, ofst, moveSnoise);
-			noise +=    0.25 * snoise4DImage((uv - vec2<f32>(834.0, 724.0)) * 4.0, scal, gain, ofst, moveSnoise);
-			noise +=   0.125 * snoise4DImage((uv - vec2<f32>(125.0, 209.0)) * 8.0, scal, gain, ofst, moveSnoise);
-			noise +=  0.0625 * snoise4DImage((uv - vec2<f32>(387.0, 99.0)) * 16.0, scal, gain, ofst, moveSnoise);
-			
-			noise = noise / 1.9375;
-			
-			return noise;
-		}
-	
-		@group(0) @binding(0)var<uniform> vertexUniforms: VertexUniforms;
-		@vertex
-		fn main(input: VertexInput) -> VertexOutput {
-			var output: VertexOutput;
-			output.texCoord = input.texCoord;
-			var pos: vec2<f32> = input.position;
-			let circle: f32 = smoothstep(1.0, 0.0, length(vec2<f32>(0.0) - input.position));
-			let noiseValue: vec2<f32> = noise(pos, 2.0, 5.0, 0.5, 0.1, vec4<f32>(vec2<f32>(0.0), vec2<f32>(cos(vertexUniforms.time * 0.5), sin(vertexUniforms.time * 0.5)) + vertexUniforms.randomVec2)).rg * circle;
-			let dpos: vec2<f32> = displace(pos, noiseValue, 0.5, 0.2 * circle);
-			output.color = noiseValue.rg * noise(pos * 1000.0, 1.0, 1.0, 0.5, 1.0, vec4<f32>(0.0)).r;
-			output.position = vec4<f32>(dpos, 0.0, 1.0);
-			
-			return output;
-		}`);
+	`);
 
 	setGPUFragmentShader(`
 		struct FragmentInput {
 			@location(0) texCoord: vec2<f32>,
-			@location(1) color: vec2<f32>,
-		};
-	
+			@location(1) color: vec2<f32>, // non usata
+			@location(2) t: f32,           // tempo dal vertex
+			};
+		
+		// se la tua app si aspetta comunque @group(1) @binding(0) puoi lasciare questa struct,
+		// ma NON la usiamo. In alternativa, puoi rimuoverla se la pipeline non la richiede.
 		struct FragmentUniforms {
 			color: vec3<f32>,
 			precColor: vec3<f32>,
 			transitionFactor: f32,
-		};
-	
+			};
 		@group(1) @binding(0) var<uniform> fragmentUniforms: FragmentUniforms;
+		fn colormap_red(x: f32) -> f32 {
+			if (x < 0.0) { return 54.0 / 255.0; }
+			else if (x < 20049.0 / 82979.0) { return (829.79 * x + 54.51) / 255.0; }
+			else { return 1.0; }
+		}
+
+		fn colormap_green(x: f32) -> f32 {
+			if (x < 20049.0 / 82979.0) {
+				return 0.0;
+			} else if (x < 327013.0 / 810990.0) {
+				return ((8546482679670.0 / 10875673217.0) * x - (2064961390770.0 / 10875673217.0)) / 255.0;
+			} else if (x <= 1.0) {
+				return ((103806720.0 / 483977.0) * x + (19607415.0 / 483977.0)) / 255.0;
+			} else {
+				return 1.0;
+			}
+		}
+
+
+		fn colormap_blue(x: f32) -> f32 {
+		if (x < 0.0) { return 54.0 / 255.0; }
+		else if (x < 7249.0 / 82979.0) { return (829.79 * x + 54.51) / 255.0; }
+		else if (x < 20049.0 / 82979.0) { return 127.0 / 255.0; }
+		else if (x < 327013.0 / 810990.0) { return (792.0224934136139 * x - 64.36479073560233) / 255.0; }
+		else { return 1.0; }
+		}	
+		
+		
+		fn colormap(x: f32) -> vec4<f32> {
+		return vec4<f32>(colormap_red(x), colormap_green(x), colormap_blue(x), 1.0);
+		}
+
+		fn rand(n: vec2<f32>) -> f32 { return fract(sin(dot(n, vec2<f32>(12.9898, 4.1414))) * 43758.5453); }
+		fn noise(p: vec2<f32>) -> f32 {
+		let ip = floor(p);
+		var u = fract(p);
+		u = u * u * (3.0 - 2.0 * u);
+		let res = mix(
+			mix(rand(ip), rand(ip + vec2<f32>(1.0, 0.0)), u.x),
+			mix(rand(ip + vec2<f32>(0.0, 1.0)), rand(ip + vec2<f32>(1.0, 1.0)), u.x),
+			u.y
+		);
+		return res * res;
+		}
+		const mtx : mat2x2<f32> = mat2x2<f32>(vec2<f32>(0.80, 0.60), vec2<f32>(-0.60, 0.80));
+		fn fbm(p_in: vec2<f32>, t: f32) -> f32 {
+		var p = p_in;
+		var f: f32 = 0.0;
+		f += 0.500000 * noise(p + vec2<f32>(t, t)); p = mtx * p * 2.02;
+		f += 0.031250 * noise(p);                    p = mtx * p * 2.01;
+		f += 0.250000 * noise(p);                    p = mtx * p * 2.03;
+		f += 0.125000 * noise(p);                    p = mtx * p * 2.01;
+		f += 0.062500 * noise(p);                    p = mtx * p * 2.04;
+		f += 0.015625 * noise(p + vec2<f32>(sin(t), sin(t)));
+		return f / 0.96875;
+		}
+		fn pattern(p: vec2<f32>, t: f32) -> f32 {
+		return fbm(p + fbm(p + fbm(p, t), t), t);
+		}
+
 		@fragment
 		fn main(input: FragmentInput) -> @location(0) vec4<f32> {
-			let uv: vec2<f32> = input.texCoord;
+		// Shadertoy-like: usa uv in [0,1]
+		let uv = input.texCoord;
+
+		let shade = pattern(uv, input.t);
+		let cm = colormap(shade);
+
+		// Se vuoi mantenere il blend con i colori dell'app, sostituisci la riga sotto
+		// con un mix su fragmentUniforms.color/precColor.
+		return vec4<f32>(cm.xyz, shade);
+		}		
+
+		`);
+
 	
-			let intensity: f32 = length(input.color);
-	
-			let thresholdMin: f32 = 0.;
-			let thresholdMax: f32 = 0.5;
-	
-			let alpha: f32 = smoothstep(thresholdMin, thresholdMax, intensity);
-	
-			let blendedColor: vec3<f32> = mix(fragmentUniforms.precColor, fragmentUniforms.color, fragmentUniforms.transitionFactor);
-	
-			return mix(vec4<f32>(0.0, 0.0, 0.0, 1.0), vec4<f32>(blendedColor, 1.0), alpha);
-		}`);
 }
