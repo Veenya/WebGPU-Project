@@ -1,0 +1,45 @@
+{
+  "name": "visualizer-webapp",
+  "version": "1.0.0",
+  "description": "Visualizzatore di BrainFrame.",
+  "source": "src/index.html",
+  "dependencies": {
+    "canvas-to-buffer": "^2.0.1",
+    "mathjs": "^11.8.0",
+    "openai": "^4.71.1",
+    "p5": "^1.6.0",
+    "path": "^0.12.7",
+    "socket.io-client": "^2.3.0"
+  },
+  "scripts": {
+    "start": "parcel",
+    "serve": "parcel",
+    "build-local": "parcel build",
+    "test": "node test/testServer.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://gitlab.vibre.io/brainart/legacy/visualizer-webapp"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "assert": "^2.0.0",
+    "browserify-zlib": "^0.2.0",
+    "buffer": "^5.7.1",
+    "cors": "^2.8.5",
+    "crypto-browserify": "^3.12.0",
+    "events": "^3.3.0",
+    "express": "^4.19.2",
+    "parcel": "^2.15.2",
+    "path-browserify": "^1.0.1",
+    "process": "^0.11.10",
+    "punycode": "^2.3.1",
+    "querystring-es3": "^0.2.1",
+    "socket.io": "^2.3.0",
+    "stream-browserify": "^3.0.0",
+    "stream-http": "^3.2.0",
+    "url": "^0.11.0",
+    "util": "^0.12.5"
+  }
+}

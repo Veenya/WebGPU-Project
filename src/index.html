@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <!--<meta charset="UTF-8">-->
+
+    <script type="module" src="app.js"></script>
+
+    <!-- This line removes any default padding and style.
+       You might only need one of these values set. -->
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        div img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            margin: auto;
+        }
+
+        canvas {
+            padding: 0;
+            margin: 0;
+        }
+
+        body {
+            overflow-x: hidden;
+            overflow-y: hidden;
+        }
+    </style>
+
+</head>
+
+<body id='body' bgcolor="#000000">
+
+    <div id="main-canvas">
+        <img src="../resources/logo.png" position='center'>
+        <label id='visualizer-code' style="color: #FFFFFF"></label>
+    </div>
+
+</body>
+
+</html>

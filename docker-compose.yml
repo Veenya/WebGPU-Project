@@ -1,0 +1,16 @@
+version: '3'
+services:
+  visualizer-webapp:
+    build: 
+      context: .
+      args:
+        NPM_LOGIN_EMAIL: mr@vibre.io
+        NPM_LOGIN_USER: vibre-dev
+        NPM_LOGIN_PASSWORD: V1bre-verdacciouser
+        NPM_LOGIN_REGISTRY: https://verdaccio.vibre.io:443
+      dockerfile: Dockerfile
+    environment:
+      - BASE_URL=
+      - SOCKET_ADDRESS=http://localhost:5002/app
+    ports:
+      - 8080:80
